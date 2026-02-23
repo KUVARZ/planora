@@ -88,51 +88,43 @@
     - **API Metodu:** `GET /notifications`
     - **Açıklama:** Kullanıcıya ait bildirimlerin listesini görüntülemesini sağlar. Bildirimler; plan hatırlatmaları, yaklaşan etkinlikler, rota değişiklikleri veya sistem bilgilendirmeleri gibi içerikleri kapsayabilir. Kullanıcı yalnızca kendi hesabına ait bildirimleri görüntüleyebilir.
 
-23. **Bildirim Düzenleme** (Ayşenur Laklak)
-    - **API Metodu:** `PUT /notifications/:notifId`
-    - **Açıklama:** Kullanıcının mevcut bir bildirim kaydı üzerinde düzenleme yapmasını sağlar. Bildirim içeriği, hatırlatma zamanı, bildirim durumu veya bildirim tercihleri güncellenebilir. Güvenlik açısından kullanıcı yalnızca kendi bildirim kayıtlarını düzenleyebilir.
-
-24. **Bildirim Silme** (Ayşenur Laklak)
+23. **Bildirim Silme** (Ayşenur Laklak)
     - **API Metodu:** `DELETE /notifications/:notifId`
     - **Açıklama:** Kullanıcının bildirim listesindeki bir bildirimi kaldırmasını sağlar. Silinen bildirim kullanıcı arayüzünde artık görüntülenmez ve bildirim listesi güncellenir. Kullanıcı yalnızca kendi bildirim kayıtlarını silebilir.
 
-25. **Bildirim Ekleme** (Ayşenur Laklak)
+24. **Bildirim Ekleme** (Ayşenur Laklak)
     - **API Metodu:** `POST /notifications`
     - **Açıklama:** Kullanıcıya ait yeni bir bildirim kaydı oluşturulmasını sağlar. Bildirim; başlık, içerik, tarih-saat, hatırlatma türü ve ilgili plan/rota bağlantısı gibi bilgiler içerebilir. Bu özellik, kullanıcıya seyahat planı ile ilgili önemli hatırlatmaların zamanında iletilmesini destekler.
 
-26. **Bildirim Detayı Görüntüleme** (Ayşenur Laklak)
-    - **API Metodu:** `GET /notifications/:notifId`
-    - **Açıklama:** Kullanıcının seçtiği bir bildirimin detaylarını görüntülemesini sağlar. Bildirim detayında başlık, içerik, oluşturulma zamanı, hatırlatma zamanı ve ilgili plan/rota bağlantısı gibi bilgiler yer alabilir. Kullanıcı yalnızca kendi bildirim kayıtlarının detaylarına erişebilir.
-
-27. **Kullanıcı Tercihi Ekleme** (Volkan Avcı)
+25. **Kullanıcı Tercihi Ekleme** (Volkan Avcı)
     - **API Metodu:** `POST /preferences`
     - **Açıklama:** Kullanıcının seyahat planlamasında kullanılmak üzere kişisel tercih bilgilerini sisteme eklemesini sağlar. Tercihler; bütçe aralığı, ilgi alanları, ulaşım tercihi, yemek tercihleri, aktivite türleri veya konaklama beklentileri gibi bilgileri içerebilir. Bu bilgiler, yapay zeka destekli önerilerin kullanıcıya daha uygun şekilde sunulmasına yardımcı olur.
 
-28. **Kullanıcı Tercihi Güncelleme** (Volkan Avcı)
+26. **Kullanıcı Tercihi Güncelleme** (Volkan Avcı)
     - **API Metodu:** `PUT /preferences/:prefId`
     - **Açıklama:** Kullanıcının daha önce kaydettiği tercih bilgilerinde değişiklik yapmasını sağlar. Kullanıcı bütçe, ilgi alanı, ulaşım, yemek veya aktivite tercihlerini güncelleyerek öneri sonuçlarını kendi ihtiyaçlarına göre yeniden şekillendirebilir. Güvenlik açısından kullanıcı yalnızca kendi tercih kayıtlarını düzenleyebilir.
 
-29. **Kullanıcı Tercihi Silme** (Volkan Avcı)
+27. **Kullanıcı Tercihi Silme** (Volkan Avcı)
     - **API Metodu:** `DELETE /preferences/:prefId`
     - **Açıklama:** Kullanıcının kayıtlı tercih bilgilerinden birini sistemden kaldırmasını sağlar. Silinen tercih kaydı artık öneri oluşturma sürecinde dikkate alınmaz ve kullanıcı tercih listesinde görüntülenmez. Kullanıcı yalnızca kendi tercih kayıtlarını silebilir.
 
-30. **Kullanıcı Tercihleri Görüntüleme** (Volkan Avcı)
+28. **Kullanıcı Tercihleri Görüntüleme** (Volkan Avcı)
     - **API Metodu:** `GET /preferences`
     - **Açıklama:** Kullanıcının sisteme kaydettiği tüm tercih bilgilerini liste halinde görüntülemesini sağlar. Kullanıcı bu ekran üzerinden mevcut tercihlerini inceleyebilir ve ihtiyaç duyduğunda güncelleme veya silme işlemlerine erişebilir. Bu işlem için kullanıcının giriş yapmış olması gerekir ve yalnızca kendi tercih verileri görüntülenir.
 
-31. **Gezi Noktası Ekleme** (Volkan Avcı)
+29. **Gezi Noktası Ekleme** (Volkan Avcı)
     - **API Metodu:** `POST /route/:routeId/places`
     - **Açıklama:** Kullanıcının mevcut bir rota içerisine yeni bir gezi noktası eklemesini sağlar. Gezi noktası kaydı; mekan adı, konum bilgisi, ziyaret sırası, tahmini süre, kategori ve notlar gibi bilgileri içerebilir. Bu özellik sayesinde kullanıcı rotasını daha detaylı ve kişiselleştirilmiş şekilde düzenleyebilir.
 
-32. **Gezi Noktası Güncelleme** (Volkan Avcı)
+30. **Gezi Noktası Güncelleme** (Volkan Avcı)
     - **API Metodu:** `PUT /route/:routeId/places/:placeId`
     - **Açıklama:** Kullanıcının rota içerisinde yer alan bir gezi noktasının bilgilerini güncellemesini sağlar. Kullanıcı gezi noktasının adını, konumunu, sırasını, tahmini ziyaret süresini veya notlarını vs. değiştirebilir. Güvenlik açısından kullanıcı yalnızca kendi rotalarına ait gezi noktalarını düzenleyebilir.
 
-33. **Gezi Noktası Silme** (Volkan Avcı)
+31. **Gezi Noktası Silme** (Volkan Avcı)
     - **API Metodu:** `DELETE /route/:routeId/places/:placeId`
     - **Açıklama:** Kullanıcının rota içerisinde bulunan bir gezi noktasını kaldırmasını sağlar. Silinen gezi noktası rota planından çıkarılır ve rota sıralaması gerekli durumlarda güncellenir. Kullanıcı yalnızca kendi rotalarına ait gezi noktalarını silebilir.
 
-34. **Gezi Noktası Görüntüleme** (Volkan Avcı)
+32. **Gezi Noktası Görüntüleme** (Volkan Avcı)
     - **API Metodu:** `GET /route/:routeId/places/:placeId`
     - **Açıklama:** Kullanıcının rota içindeki belirli bir gezi noktasının detaylarını görüntülemesini sağlar. Gezi noktası detayında mekan adı, konum bilgisi, kategori, ziyaret süresi, sıra bilgisi ve kullanıcı notları gibi bilgiler yer alabilir. Kullanıcı yalnızca kendi rotalarına ait gezi noktalarının detaylarına erişebilir.
 
