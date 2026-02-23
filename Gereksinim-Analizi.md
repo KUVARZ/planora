@@ -139,6 +139,6 @@
 # Gereksinim Dağılımları
 
 1. [Ramazan Bodur'un Gereksinimleri](Ramazan-Bodur/Ramazan-Bodur-Gereksinimler.md)
-2. [Sümeyye Zişan Abdan'ın Gereksinimleri](Sumeyye-Zisan-Abdan/Sumeyye-Zisan-Abdan-Gereksinimler.md)
+2. [Sümeyye Zişan Abdan'ın Gereksinimleri](Sumeyye-Zisan-Abdan/Zisan-Abdan-Gereksinimler.md)
 3. [Ayşenur Laklak'ın Gereksinimleri](Aysenur-Laklak/Aysenur-Laklak-Gereksinimler.md)
 4. [Volkan Avcı'nın Gereksinimleri](Volkan-Avci/Volkan-Avci-Gereksinimler.md)
