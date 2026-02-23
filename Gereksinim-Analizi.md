@@ -128,6 +128,22 @@
     - **API Metodu:** `GET /route/:routeId/places/:placeId`
     - **Açıklama:** Kullanıcının rota içindeki belirli bir gezi noktasının detaylarını görüntülemesini sağlar. Gezi noktası detayında mekan adı, konum bilgisi, kategori, ziyaret süresi, sıra bilgisi ve kullanıcı notları gibi bilgiler yer alabilir. Kullanıcı yalnızca kendi rotalarına ait gezi noktalarının detaylarına erişebilir.
 
+33. **Yapay Zeka Destekli Gezi Önerileri Sunma** (Ramazan Bodur)
+    - **API Metodu:** `POST /ai/trip-recommendations`
+    - **Açıklama:** Kullanıcının tercihleri, seyahat amacı, bütçesi, süresi ve seçtiği destinasyon doğrultusunda kapsamlı gezi önerileri sunar. Yapay zeka; önerilen mekanlar, günlük plan taslakları, rota fikirleri, yapılabilecek aktiviteler ve dikkat edilmesi gereken noktalar gibi bilgileri içerebilir. Bu özellik, kullanıcıya seyahat planlamasının başlangıç aşamasında rehberlik eder ve hızlı bir plan oluşturmasına yardımcı olur.
+
+34. **Yapay Zeka Destekli Aktivite Önerisi Sunma** (Sümeyye Zişan Abdan)
+    - **API Metodu:** `POST /ai/activity-recommendations`
+    - **Açıklama:** Kullanıcının ilgi alanları, bütçe aralığı, seyahat süresi, konum bilgisi ve geçmiş tercihlerine göre kişiselleştirilmiş aktivite önerileri oluşturur. Yapay zeka; kültürel, eğlence, doğa, gastronomi gibi farklı kategorilerde öneriler sunabilir. Öneriler, kullanıcının mevcut rota ve takvim planları ile uyumlu olacak şekilde hazırlanabilir.
+
+35. **Yapay Zeka Destekli Hava Durumuna Göre Öneri Sunma** (Ayşenur Laklak)
+    - **API Metodu:** `POST /ai/weather-recommendations`
+    - **Açıklama:** Kullanıcının seçtiği şehir ve tarih aralığı için güncel hava durumu verilerini analiz ederek uygun aktivite ve gezi önerileri sunar. Yapay zeka; sıcaklık, yağış durumu, rüzgar, mevsimsel koşullar ve kullanıcının tercihlerine göre açık hava veya kapalı alan etkinlikleri önerir. Bu sayede kullanıcı hava şartlarına uygun bir seyahat planı oluşturabilir.
+
+36. **Yapay Zeka Destekli Gezi Raporu Özeti Oluşturma** (Volkan Avcı)
+    - **API Metodu:** `POST /ai/trip-summary`
+    - **Açıklama:** Kullanıcının tamamladığı veya planladığı geziye ait rota, ziyaret edilen yerler, aktiviteler, süreler ve kullanıcı notları gibi verileri analiz ederek özet bir gezi raporu oluşturur. Yapay zeka; gezi boyunca yapılan aktiviteleri kronolojik olarak özetleyebilir, öne çıkan deneyimleri vurgulayabilir ve kullanıcıya paylaşılabilir bir metin sunabilir. Bu özellik, kullanıcıların seyahat deneyimlerini kaydetmesine ve başkalarıyla paylaşmasına yardımcı olur.
+
 # Gereksinim Dağılımları
 
 1. [Ramazan Bodur'un Gereksinimleri](Ramazan-Bodur/Ramazan-Bodur-Gereksinimler.md)
