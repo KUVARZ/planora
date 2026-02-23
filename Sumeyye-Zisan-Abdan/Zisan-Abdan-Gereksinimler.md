@@ -29,3 +29,8 @@
 8. **Takvim Görüntüleme** 
     - **API Metodu:** `GET /calendar`
     - **Açıklama:** Kullanıcının oluşturduğu tüm takvim planlarını gün, hafta veya ay bazında görüntülemesini sağlar. Takvim üzerinde hangi günlerde hangi etkinliklerin planlandığı listelenir ve kullanıcı seyahat programını bütüncül olarak takip edebilir. Bu işlem için kullanıcının giriş yapmış olması gerekir ve yalnızca kendi takvim verileri görüntülenir.
+
+
+9. **Yapay Zeka Destekli Aktivite Önerisi Sunma** 
+    - **API Metodu:** `POST /ai/activity-recommendations`
+    - **Açıklama:** Kullanıcının ilgi alanları, bütçe aralığı, seyahat süresi, konum bilgisi ve geçmiş tercihlerine göre kişiselleştirilmiş aktivite önerileri oluşturur. Yapay zeka; kültürel, eğlence, doğa, gastronomi gibi farklı kategorilerde öneriler sunabilir. Öneriler, kullanıcının mevcut rota ve takvim planları ile uyumlu olacak şekilde hazırlanabilir.
