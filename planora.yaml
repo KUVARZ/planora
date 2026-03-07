@@ -1,0 +1,4234 @@
+openapi: 3.2.0
+
+info:
+  title: PLANORA API
+  summary: AI destekli seyahat, rota ve takvim planlama API'si.
+  description: |
+    PLANORA, kullanıcıların ilgi alanları, bütçesi, zaman aralığı ve gezi tarzına göre
+    kişiselleştirilmiş seyahat planları, rotalar ve öneriler üretmeyi amaçlayan
+    yapay zeka destekli bir seyahat planlama platformudur.
+
+    Bu API kapsam olarak şunları içerir:
+    - hesap yönetimi ve 2FA
+    - profil yönetimi
+    - favoriler
+    - takvim planları
+    - rotalar ve rota içi gezi noktaları
+    - bildirimler
+    - kullanıcı tercihleri
+    - yapay zeka destekli öneriler ve gezi özeti
+  version: 1.0.0
+  contact:
+    name: KUVARZ Team
+    email: api@planorapp.net
+    url: https://planorapp.net/contact
+  license:
+    name: MPL-2.0
+    url: https://opensource.org/license/mpl-2-0
+
+servers:
+  - url: https://api.planorapp.net/v1
+    description: Production Server
+  - url: https://staging-api.planorapp.net/v1
+    description: Staging Server
+  - url: http://localhost:3001/v1
+    description: Development Server
+
+tags:
+  - name: Auth
+    description: Kayıt, giriş, 2FA, parola sıfırlama ve kullanıcı adı uygunluk akışları.
+  - name: Profile
+    description: Oturum açmış kullanıcının profilini görüntüleme ve güncelleme işlemleri.
+  - name: Favorites
+    description: Kullanıcının favori içeriklerini listeleme, ekleme ve silme işlemleri.
+  - name: Calendar
+    description: Takvim planı oluşturma, listeleme, detay görüntüleme, güncelleme ve silme işlemleri.
+  - name: Routes
+    description: Rota oluşturma, listeleme, detay görüntüleme, güncelleme ve silme işlemleri.
+  - name: Route Places
+    description: Rota içindeki gezi noktalarının yönetimi.
+  - name: Notifications
+    description: Kullanıcı bildirimlerini oluşturma, listeleme ve silme işlemleri.
+  - name: Preferences
+    description: Kişisel seyahat tercihlerini yönetme işlemleri.
+  - name: AI
+    description: AI destekli gezi, aktivite, hava durumu önerileri ve gezi özeti üretimi.
+
+externalDocs:
+  description: Proje ana dokümantasyonu
+  url: ./README.md
+
+security:
+  - SessionCookie: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Yeni kullanıcı kaydı oluştur
+      description: >
+        Yeni bir PLANORA hesabı oluşturur. Kullanıcı adı, e-posta ve şifre ile kayıt alır.
+        Bu uç nokta public'tir. Kullanıcı adı ve e-posta benzersizliği doğrulanmalıdır.
+      operationId: registerUser
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              basic:
+                summary: Standart kayıt isteği
+                value:
+                  username: ramazanbodur
+                  email: ramazan@example.com
+                  password: "StrongP@ssw0rd!"
+                  firstName: Ramazan
+                  lastName: Bodur
+                  birthDate: "2003-05-14"
+      responses:
+        '201':
+          description: Kullanıcı başarıyla oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+
+  /profile:
+    get:
+      tags: [Profile]
+      summary: Oturumdaki kullanıcının profilini getir
+      description: >
+        Giriş yapmış kullanıcının kendi profil bilgilerini döndürür.
+        Başka kullanıcıların profiline bu uç nokta üzerinden erişilemez.
+      operationId: getMyProfile
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Profil başarıyla getirildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    put:
+      tags: [Profile]
+      summary: Oturumdaki kullanıcının profilini güncelle
+      description: >
+        Giriş yapmış kullanıcının kendi profil alanlarını günceller.
+        Kullanıcı yalnızca kendi verisini değiştirebilir.
+      operationId: updateMyProfile
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            examples:
+              basic:
+                summary: Profil güncelleme
+                value:
+                  firstName: Ramazan
+                  lastName: Bodur
+                  email: ramazan@example.com
+                  birthDate: "2003-05-14"
+      responses:
+        '200':
+          description: Profil başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+  /auth/2fa:
+    post:
+      tags: [Auth]
+      summary: 2FA kurulumunu başlat veya oluştur
+      description: >
+        Giriş yapmış kullanıcı için iki aşamalı kimlik doğrulama yöntemi tanımlar.
+        Tipik akışta sunucu bir shared secret, otpauth URI ve QR bilgisi döndürür;
+        kullanıcı doğrulama uygulamasıyla eşleştirdikten sonra kurulum doğrulanır.
+      operationId: createTwoFactorMethod
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTwoFactorRequest'
+      responses:
+        '201':
+          description: 2FA kurulum verisi oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: Kullanıcı için zaten etkin bir 2FA yöntemi mevcut.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+    put:
+      tags: [Auth]
+      summary: Mevcut 2FA yöntemini güncelle
+      description: >
+        Kullanıcının mevcut 2FA yapılandırmasını değiştirir, yeniden üretir veya yeni
+        yöntem ile değiştirir. Güvenlik nedeniyle mevcut oturum yanında ek doğrulama
+        veya mevcut OTP kodu istenebilir.
+      operationId: updateTwoFactorMethod
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTwoFactorRequest'
+      responses:
+        '200':
+          description: 2FA yöntemi güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '428':
+          $ref: '#/components/responses/FreshAuthRequiredError'
+        '449':
+          $ref: '#/components/responses/TwoFactorRequiredError'
+
+  /favorites:
+    get:
+      tags: [Favorites]
+      summary: Kullanıcının favori listesini getir
+      description: >
+        Oturumdaki kullanıcının kendi favori listesini döndürür.
+        Liste farklı kaynak tiplerini aynı koleksiyonda barındırabilir.
+      operationId: listFavorites
+      security:
+        - SessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/FavoriteTypeFilter'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationCursor'
+      responses:
+        '200':
+          description: Favoriler başarıyla listelendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags: [Favorites]
+      summary: Favori ekle
+      description: >
+        Bir mekanı, aktiviteyi veya gezi planını kullanıcının favori listesine ekler.
+        Aynı hedefin tekrar favorilenmesi engellenebilir.
+      operationId: createFavorite
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFavoriteRequest'
+      responses:
+        '201':
+          description: Favori başarıyla oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ReferencedResourceNotFoundError'
+        '409':
+          description: İlgili öğe zaten favorilerde mevcut.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /favorites/{favoriteId}:
+    delete:
+      tags: [Favorites]
+      summary: Favori kaydını sil
+      description: >
+        Kullanıcının yalnızca kendi favori kaydını silmesine izin verir.
+      operationId: deleteFavorite
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/FavoriteId'
+      responses:
+        '204':
+          description: Favori başarıyla silindi.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/FavoriteNotFoundError'
+
+  /ai/trip-recommendations:
+    post:
+      tags: [AI]
+      summary: Yapay zeka destekli gezi önerileri üret
+      description: >
+        Kullanıcının tercihlerine, seyahat amacına, bütçesine, süresine ve destinasyonuna göre
+        kapsamlı gezi önerileri üretir. Yanıtta önerilen yerler, günlük taslak plan, rota fikirleri,
+        aktivite önerileri ve dikkat notları dönebilir.
+      operationId: generateTripRecommendations
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripRecommendationRequest'
+      responses:
+        '200':
+          description: Gezi önerileri başarıyla üretildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripRecommendationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '424':
+          $ref: '#/components/responses/ExternalDependencyError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '503':
+          $ref: '#/components/responses/AIProviderUnavailableError'
+
+  # -------------------------- RB
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Kullanıcı girişi yap
+      description: >
+        Kullanıcının email, parola ve gerekiyorsa 2FA kodu ile oturum açmasını sağlar.
+        Başarılı girişte sunucu session cookie oluşturur.
+        Email/parola doğru ancak ikinci faktör eksikse veya ayrıca isteniyorsa 2FA challenge dönebilir.
+      operationId: loginUser
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              passwordOnly:
+                summary: İlk adım giriş isteği
+                value:
+                  email: ramazan@example.com
+                  password: "StrongP@ssw0rd!"
+              passwordAndOtp:
+                summary: 2FA kodu ile giriş
+                value:
+                  email: ramazan@example.com
+                  password: "StrongP@ssw0rd!"
+                  otpCode: "123456"
+      responses:
+        '200':
+          description: >
+            Giriş başarılı. Session cookie sunucu tarafından ayarlanır.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '202':
+          description: >
+            Birincil kimlik doğrulama başarılı ancak girişin tamamlanması için ikinci faktör doğrulaması gerekiyor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginRequiresTwoFactorResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailedError'
+        '423':
+          $ref: '#/components/responses/AccountLockedError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+
+  /password-reset:
+    post:
+      tags: [Auth]
+      summary: Şifre sıfırlama akışını başlat veya tamamla
+      description: >
+        Tek bir uç nokta altında şifre sıfırlama sürecinin iki fazını taşır:
+        `request_reset` e-posta ile sıfırlama talebi başlatır,
+        `confirm_reset` ise doğrulama tokenı/kodu ve yeni parola ile süreci tamamlar.
+        Güvenlik açısından sistem, e-posta adresinin kayıtlı olup olmadığını sızdırmamak için
+        istek başlatma aşamasında genel bir başarı cevabı dönebilir.
+      operationId: passwordReset
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: >
+            Şifre sıfırlama talebi kabul edildi. E-posta mevcutsa doğrulama adımları başlatılır.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetInitiateResponse'
+        '200':
+          description: Şifre başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetConfirmResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '410':
+          $ref: '#/components/responses/ResetTokenExpiredError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+
+  /username-check:
+    get:
+      tags: [Auth]
+      summary: Kullanıcı adının uygunluğunu kontrol et
+      description: >
+        Belirtilen kullanıcı adının kullanılabilir olup olmadığını döndürür.
+        Kayıt ve profil güncelleme akışlarında kullanılabilir.
+      operationId: checkUsernameAvailability
+      security:
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/UsernameQuery'
+      responses:
+        '200':
+          description: Kullanıcı adı uygunluk sonucu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsernameCheckResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+
+  /calendar:
+    post:
+      tags: [Calendar]
+      summary: Rota bağlantılı takvim planı oluştur
+      description: >
+        Kullanıcının belirli bir rota kapsamında gün ve saat bazlı takvim planı oluşturmasını sağlar.
+        Plan; mekan, aktivite, saat aralığı, notlar ve AI öneri referansları içerebilir.
+        Kullanıcı yalnızca kendi hesabına ait route'lar için plan oluşturabilir.
+      operationId: createCalendarPlan
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCalendarPlanRequest'
+      responses:
+        '201':
+          description: Takvim planı oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarPlanResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+        '409':
+          $ref: '#/components/responses/CalendarConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+    get:
+      tags: [Calendar]
+      summary: Takvim planlarını listele
+      description: >
+        Kullanıcının kendi takvim planlarını gün, hafta veya ay bazında görüntüler.
+        İstenirse belirli bir route'a göre filtrelenebilir.
+      operationId: listCalendarPlans
+      security:
+        - SessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CalendarView'
+        - $ref: '#/components/parameters/CalendarDate'
+        - $ref: '#/components/parameters/CalendarFrom'
+        - $ref: '#/components/parameters/CalendarTo'
+        - $ref: '#/components/parameters/CalendarRouteId'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationCursor'
+      responses:
+        '200':
+          description: Takvim planları listelendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarPlanListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /calendar/{planId}:
+    get:
+      tags: [Calendar]
+      summary: Belirli bir takvim planını görüntüle
+      description: >
+        Kullanıcının yalnızca kendi takvim planı detayına erişmesini sağlar.
+        Plan; tarih, saat, mekan, aktivite, notlar ve varsa AI öneri referanslarını içerebilir.
+      operationId: getCalendarPlan
+      security:
+        - SessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Takvim planı detayı getirildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarPlanResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/CalendarPlanNotFoundError'
+
+    put:
+      tags: [Calendar]
+      summary: Takvim planını güncelle
+      description: >
+        Kullanıcı kendi takvim planında tarih, saat, aktivite, mekan, not veya bağlı rota
+        gibi alanları güncelleyebilir.
+      operationId: updateCalendarPlan
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCalendarPlanRequest'
+      responses:
+        '200':
+          description: Takvim planı güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarPlanResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/CalendarPlanNotFoundError'
+        '409':
+          $ref: '#/components/responses/CalendarConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+    delete:
+      tags: [Calendar]
+      summary: Takvim planını sil
+      description: >
+        Kullanıcının yalnızca kendi takvim planını silmesine izin verir.
+        Silinen kayıt ilgili takvim görünümünden kaldırılır.
+      operationId: deleteCalendarPlan
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '204':
+          description: Takvim planı silindi.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/CalendarPlanNotFoundError'
+
+  /ai/activity-recommendations:
+    post:
+      tags: [AI]
+      summary: Yapay zeka destekli aktivite önerileri üret
+      description: >
+        Kullanıcının ilgi alanları, bütçe aralığı, seyahat süresi, konum bilgisi ve geçmiş
+        tercihlerine göre kişiselleştirilmiş aktivite önerileri üretir.
+        İstenirse mevcut route ve takvim planları ile uyum dikkate alınır.
+      operationId: generateActivityRecommendations
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityRecommendationRequest'
+      responses:
+        '200':
+          description: Aktivite önerileri üretildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityRecommendationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+        '424':
+          $ref: '#/components/responses/ExternalDependencyError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '503':
+          $ref: '#/components/responses/AIProviderUnavailableError'
+
+  # ------------------------- ZA
+
+  /route:
+    get:
+      tags: [ Routes ]
+      summary: Kullanıcının rota kayıtlarını listele
+      description: >
+        Giriş yapmış kullanıcının kendi oluşturduğu rota kayıtlarını listeler.
+        Liste görünümünde rota başlığı, destinasyon, durum, tahmini süre, durak sayısı
+        ve varsa takvim bağlantı özeti gibi bilgiler dönebilir.
+      operationId: listRoutes
+      security:
+        - SessionCookie: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteStatusFilter'
+        - $ref: '#/components/parameters/RouteDestinationCityFilter'
+        - $ref: '#/components/parameters/RouteFromDate'
+        - $ref: '#/components/parameters/RouteToDate'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationCursor'
+      responses:
+        '200':
+          description: Rota listesi başarıyla getirildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags: [ Routes ]
+      summary: Yeni rota oluştur
+      description: >
+        Kullanıcının seçtiği şehir ve gezi tercihleri doğrultusunda yeni bir rota oluşturur.
+        Rota; başlangıç ve varış noktası, duraklar, tahmini süreler, aktivite sıralaması,
+        notlar ve plan özeti gibi bilgileri içerebilir.
+      operationId: createRoute
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouteRequest'
+      responses:
+        '201':
+          description: Rota başarıyla oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+  /route/{routeId}:
+    get:
+      tags: [ Routes ]
+      summary: Belirli bir rota kaydının detayını getir
+      description: >
+        Kullanıcının oluşturduğu belirli rota kaydının detayını döndürür.
+        Rota detayında başlangıç ve varış noktaları, durak özeti, önerilen mekanlar,
+        aktivite sıralaması, zaman planı ve notlar yer alabilir.
+      operationId: getRoute
+      security:
+        - SessionCookie: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+      responses:
+        '200':
+          description: Rota detayı başarıyla getirildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+
+    put:
+      tags: [ Routes ]
+      summary: Mevcut rotayı güncelle
+      description: >
+        Kullanıcının daha önce oluşturduğu rota kaydını günceller.
+        Durak sırası, mekanlar, aktivite dizilimi, zaman planı, durum ve notlar değiştirilebilir.
+        Kullanıcı yalnızca kendi rota kayıtlarını düzenleyebilir.
+      operationId: updateRoute
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRouteRequest'
+      responses:
+        '200':
+          description: Rota başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+    delete:
+      tags: [ Routes ]
+      summary: Rota kaydını sil
+      description: >
+        Kullanıcının kendi rota kayıtlarından birini silmesini sağlar.
+        Bu işlem rota ile ilişkili üst seviye planlamayı kaldırır; alt kaynak temizliği
+        uygulama tarafında policy'e göre yönetilebilir.
+      operationId: deleteRoute
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+      responses:
+        '204':
+          description: Rota başarıyla silindi.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+
+  /notifications:
+    get:
+      tags: [ Notifications ]
+      summary: Kullanıcının bildirimlerini listele
+      description: >
+        Kullanıcının kendi bildirimlerini listeler.
+        Bildirimler kullanıcı tarafından oluşturulmuş reminder kayıtları olabileceği gibi,
+        sistem, rota, takvim veya AI kaynaklı bilgilendirmeler de olabilir.
+      operationId: listNotifications
+      security:
+        - SessionCookie: [ ]
+      parameters:
+        - $ref: '#/components/parameters/NotificationTypeFilter'
+        - $ref: '#/components/parameters/NotificationSourceFilter'
+        - $ref: '#/components/parameters/NotificationReadFilter'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationCursor'
+      responses:
+        '200':
+          description: Bildirim listesi getirildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags: [ Notifications ]
+      summary: Kullanıcıya ait yeni bildirim/reminder oluştur
+      description: >
+        Kullanıcının kendi hesabı için manuel bir bildirim veya reminder kaydı oluşturmasını sağlar.
+        Sistem veya AI tarafından üretilen bildirimler ayrı akışlarla oluşturulabilir;
+        ancak bu endpoint kullanıcı tanımlı kayıtlar içindir.
+      operationId: createNotification
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNotificationRequest'
+      responses:
+        '201':
+          description: Bildirim başarıyla oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ReferencedResourceNotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+  /notifications/{notifId}:
+    delete:
+      tags: [ Notifications ]
+      summary: Bildirim kaydını sil
+      description: >
+        Kullanıcının yalnızca kendi bildirim kayıtlarını silmesine izin verir.
+        Silme işlemi hem manuel reminder bildirimleri hem de saklanan sistem bildirimleri için kullanılabilir.
+      operationId: deleteNotification
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '204':
+          description: Bildirim başarıyla silindi.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotificationNotFoundError'
+
+  /ai/weather-recommendations:
+    post:
+      tags: [ AI ]
+      summary: Hava durumuna göre aktivite ve gezi önerileri üret
+      description: >
+        Kullanıcının seçtiği şehir ve tarih aralığı için güncel veya tahmini hava durumu verilerini
+        analiz eder; sıcaklık, yağış, rüzgar, mevsimsel koşullar ve kullanıcı tercihlerini dikkate alarak
+        açık hava veya kapalı alan etkinlik önerileri üretir.
+      operationId: generateWeatherRecommendations
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeatherRecommendationRequest'
+      responses:
+        '200':
+          description: Hava durumu bazlı öneriler üretildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeatherRecommendationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+        '424':
+          $ref: '#/components/responses/ExternalDependencyError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '503':
+          $ref: '#/components/responses/AIProviderUnavailableError'
+
+  # -------------------------- AL
+
+  /preferences:
+    get:
+      tags: [ Preferences ]
+      summary: Kullanıcının preference kayıtlarını listele
+      description: >
+        Giriş yapmış kullanıcının kendi tercih profillerini listeler.
+        Her preference kaydı bütçe, ilgi alanı, ulaşım, yemek, aktivite ve benzeri
+        kişiselleştirme alanlarını içerebilir.
+      operationId: listPreferences
+      security:
+        - SessionCookie: [ ]
+      parameters:
+        - $ref: '#/components/parameters/PreferenceScopeFilter'
+        - $ref: '#/components/parameters/PreferenceDefaultFilter'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationCursor'
+      responses:
+        '200':
+          description: Preference kayıtları başarıyla listelendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags: [ Preferences ]
+      summary: Yeni preference kaydı oluştur
+      description: >
+        Kullanıcının kendisine ait yeni bir tercih profili oluşturmasını sağlar.
+        Bu kayıt daha sonra AI önerileri ve planlama akışlarında kişiselleştirme girdisi olarak kullanılabilir.
+      operationId: createPreference
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePreferenceRequest'
+      responses:
+        '201':
+          description: Preference kaydı oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+  /preferences/{prefId}:
+    put:
+      tags: [ Preferences ]
+      summary: Mevcut preference kaydını güncelle
+      description: >
+        Kullanıcının kendi preference kaydında değişiklik yapmasını sağlar.
+        Güncellenen kayıt sonraki AI önerilerinde ve plan üretiminde etkili olabilir.
+      operationId: updatePreference
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/PreferenceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePreferenceRequest'
+      responses:
+        '200':
+          description: Preference kaydı güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenceResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/PreferenceNotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+    delete:
+      tags: [ Preferences ]
+      summary: Preference kaydını sil
+      description: >
+        Kullanıcının kendi preference kaydını sistemden kaldırmasını sağlar.
+        Silinen kayıt artık AI öneri ve planlama akışlarında dikkate alınmaz.
+      operationId: deletePreference
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/PreferenceId'
+      responses:
+        '204':
+          description: Preference kaydı silindi.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/PreferenceNotFoundError'
+
+  /route/{routeId}/places:
+    post:
+      tags: [ Route Places ]
+      summary: Rota içine yeni gezi noktası ekle
+      description: >
+        Kullanıcının mevcut bir rota içerisine yeni gezi noktası eklemesini sağlar.
+        Gezi noktası; mekan adı, konum bilgisi, kategori, ziyaret sırası, tahmini süre
+        ve kullanıcı notları gibi alanlar içerebilir.
+      operationId: createRoutePlace
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoutePlaceRequest'
+      responses:
+        '201':
+          description: Gezi noktası rota içine başarıyla eklendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlaceResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+        '409':
+          $ref: '#/components/responses/RoutePlaceOrderConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+  /route/{routeId}/places/{placeId}:
+    get:
+      tags: [ Route Places ]
+      summary: Rota içindeki belirli gezi noktasını görüntüle
+      description: >
+        Kullanıcının kendi rotası içindeki belirli gezi noktasının detayını getirir.
+        Konum, kategori, ziyaret süresi, sıra ve kullanıcı notları gibi bilgiler dönebilir.
+      operationId: getRoutePlace
+      security:
+        - SessionCookie: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+        - $ref: '#/components/parameters/RoutePlaceId'
+      responses:
+        '200':
+          description: Gezi noktası detayı getirildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlaceResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RoutePlaceNotFoundError'
+
+    put:
+      tags: [ Route Places ]
+      summary: Rota içindeki gezi noktasını güncelle
+      description: >
+        Kullanıcı, rota içindeki gezi noktasının adını, konumunu, sırasını,
+        tahmini ziyaret süresini, kategori bilgisini veya notlarını güncelleyebilir.
+        Yalnızca kendi rotalarına ait gezi noktaları düzenlenebilir.
+      operationId: updateRoutePlace
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+        - $ref: '#/components/parameters/RoutePlaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoutePlaceRequest'
+      responses:
+        '200':
+          description: Gezi noktası güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlaceResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RoutePlaceNotFoundError'
+        '409':
+          $ref: '#/components/responses/RoutePlaceOrderConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+
+    delete:
+      tags: [ Route Places ]
+      summary: Rota içindeki gezi noktasını sil
+      description: >
+        Kullanıcının rota içinde bulunan bir gezi noktasını kaldırmasını sağlar.
+        Silinen nokta rota planından çıkarılır; gerekirse kalan gezi noktalarının sıra düzeni
+        uygulama tarafında yeniden dengelenebilir.
+      operationId: deleteRoutePlace
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RouteId'
+        - $ref: '#/components/parameters/RoutePlaceId'
+      responses:
+        '204':
+          description: Gezi noktası başarıyla silindi.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RoutePlaceNotFoundError'
+
+  /ai/trip-summary:
+    post:
+      tags: [ AI ]
+      summary: Yapay zeka destekli gezi özeti oluştur
+      description: >
+        Kullanıcının planladığı veya tamamladığı geziye ait rota, gezi noktaları,
+        aktiviteler, süreler ve kullanıcı notlarını analiz ederek paylaşılabilir bir özet üretir.
+        Yanıtta kronolojik akış, öne çıkan deneyimler, temel istatistikler ve paylaşılabilir metin yer alabilir.
+      operationId: generateTripSummary
+      security:
+        - SessionCookie: [ ]
+          CsrfToken: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripSummaryRequest'
+      responses:
+        '200':
+          description: Gezi özeti başarıyla üretildi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripSummaryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/RouteNotFoundError'
+        '424':
+          $ref: '#/components/responses/ExternalDependencyError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '503':
+          $ref: '#/components/responses/AIProviderUnavailableError'
+
+  # ----------------------------- VA
+
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: planora_session
+      description: >
+        PLANORA web oturumu için kullanılan birincil session cookie.
+
+  parameters:
+    FavoriteId:
+      name: favoriteId
+      in: path
+      required: true
+      description: Silinecek favori kaydının kimliği.
+      schema:
+        type: string
+        format: uuid
+
+    FavoriteTypeFilter:
+      name: type
+      in: query
+      required: false
+      description: Favori listesini belirli bir hedef tipine göre filtreler.
+      schema:
+        $ref: '#/components/schemas/FavoriteTargetType'
+
+    PaginationLimit:
+      name: limit
+      in: query
+      required: false
+      description: Döndürülecek maksimum kayıt sayısı.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    PaginationCursor:
+      name: cursor
+      in: query
+      required: false
+      description: Cursor tabanlı sayfalama için işaretçi.
+      schema:
+        type: string
+
+    # -------------------------- RB
+
+    UsernameQuery:
+      name: username
+      in: query
+      required: true
+      description: Uygunluğu kontrol edilecek kullanıcı adı.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 32
+        pattern: '^[a-zA-Z0-9._-]+$'
+
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      description: Takvim planı kimliği.
+      schema:
+        type: string
+        format: uuid
+
+    CalendarView:
+      name: view
+      in: query
+      required: false
+      description: Takvim görünüm seviyesi.
+      schema:
+        type: string
+        enum: [ day, week, month ]
+        default: month
+
+    CalendarDate:
+      name: date
+      in: query
+      required: false
+      description: >
+        Tekil tarih odaklı görünüm için referans tarih.
+        `view=day|week|month` ile birlikte kullanılabilir.
+      schema:
+        type: string
+        format: date
+
+    CalendarFrom:
+      name: from
+      in: query
+      required: false
+      description: Listeleme için başlangıç tarihi.
+      schema:
+        type: string
+        format: date
+
+    CalendarTo:
+      name: to
+      in: query
+      required: false
+      description: Listeleme için bitiş tarihi.
+      schema:
+        type: string
+        format: date
+
+    CalendarRouteId:
+      name: routeId
+      in: query
+      required: false
+      description: Takvim planlarını belirli bir route için filtreler.
+      schema:
+        type: string
+        format: uuid
+
+    # ------------------------ ZA
+
+    RouteId:
+      name: routeId
+      in: path
+      required: true
+      description: İşlem yapılacak rota kimliği.
+      schema:
+        type: string
+        format: uuid
+
+    RouteStatusFilter:
+      name: status
+      in: query
+      required: false
+      description: Rotaları durum bilgisine göre filtreler.
+      schema:
+        $ref: '#/components/schemas/RouteStatus'
+
+    RouteDestinationCityFilter:
+      name: destinationCity
+      in: query
+      required: false
+      description: Belirli bir şehir için rota listesi filtreleme.
+      schema:
+        type: string
+        maxLength: 120
+
+    RouteFromDate:
+      name: from
+      in: query
+      required: false
+      description: Planlanan rota tarih aralığı için başlangıç tarihi.
+      schema:
+        type: string
+        format: date
+
+    RouteToDate:
+      name: to
+      in: query
+      required: false
+      description: Planlanan rota tarih aralığı için bitiş tarihi.
+      schema:
+        type: string
+        format: date
+
+    NotificationId:
+      name: notifId
+      in: path
+      required: true
+      description: Silinecek bildirim kimliği.
+      schema:
+        type: string
+        format: uuid
+
+    NotificationTypeFilter:
+      name: type
+      in: query
+      required: false
+      description: Bildirim tipine göre filtreleme.
+      schema:
+        $ref: '#/components/schemas/NotificationType'
+
+    NotificationSourceFilter:
+      name: source
+      in: query
+      required: false
+      description: Bildirim kaynağına göre filtreleme.
+      schema:
+        $ref: '#/components/schemas/NotificationSource'
+
+    NotificationReadFilter:
+      name: isRead
+      in: query
+      required: false
+      description: Okunma durumuna göre filtreleme.
+      schema:
+        type: boolean
+
+    # ---------------------- AL
+
+    PreferenceId:
+      name: prefId
+      in: path
+      required: true
+      description: İşlem yapılacak preference kaydının kimliği.
+      schema:
+        type: string
+        format: uuid
+
+    PreferenceScopeFilter:
+      name: scope
+      in: query
+      required: false
+      description: Preference kayıtlarını kapsamına göre filtreler.
+      schema:
+        $ref: '#/components/schemas/PreferenceScope'
+
+    PreferenceDefaultFilter:
+      name: isDefault
+      in: query
+      required: false
+      description: Varsayılan preference kaydını filtreler.
+      schema:
+        type: boolean
+
+    RoutePlaceId:
+      name: placeId
+      in: path
+      required: true
+      description: İşlem yapılacak rota içi gezi noktası kimliği.
+      schema:
+        type: string
+        format: uuid
+
+    # ---------------------- VA
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-zA-Z0-9._-]+$'
+          description: Benzersiz kullanıcı adı.
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: >
+            Güçlü parola. Sunucu tarafında karmaşıklık kuralları ayrıca uygulanabilir.
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        birthDate:
+          type: string
+          format: date
+
+    RegisterResponse:
+      type: object
+      required:
+        - user
+        - meta
+      properties:
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        meta:
+          type: object
+          required:
+            - registeredAt
+            - twoFactorEnabled
+          properties:
+            registeredAt:
+              type: string
+              format: date-time
+            twoFactorEnabled:
+              type: boolean
+              default: false
+
+    UserSummary:
+      type: object
+      required:
+        - id
+        - username
+        - email
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ProfileResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          allOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: object
+              properties:
+                twoFactorEnabled:
+                  type: boolean
+                preferencesCount:
+                  type: integer
+                  minimum: 0
+                favoritesCount:
+                  type: integer
+                  minimum: 0
+
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        birthDate:
+          type: string
+          format: date
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-zA-Z0-9._-]+$'
+          description: >
+            Desteklenecekse güncellenebilir; desteklenmeyecekse server bunu reddedebilir.
+      description: >
+        Profil alanlarının kısmi güncellemesi için istek gövdesi.
+
+    CreateTwoFactorRequest:
+      type: object
+      required:
+        - method
+      additionalProperties: false
+      properties:
+        method:
+          type: string
+          enum: [totp]
+          description: >
+            Şimdilik en mantıklı yöntem TOTP. SMS/e-posta 2FA ileride eklenebilir.
+        issuer:
+          type: string
+          default: PLANORA
+        accountLabel:
+          type: string
+          description: Authenticator uygulamasında görünen hesap etiketi.
+
+    UpdateTwoFactorRequest:
+      type: object
+      required:
+        - action
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [rotate, reconfigure, replace]
+        currentOtpCode:
+          type: string
+          pattern: '^[0-9]{6,8}$'
+          description: >
+            Mevcut 2FA yöntemini doğrulamak için istenebilir.
+        newMethod:
+          type: string
+          enum: [totp]
+        issuer:
+          type: string
+        accountLabel:
+          type: string
+        passwordConfirmation:
+          type: string
+          format: password
+          description: Step-up authentication için ek doğrulama alanı.
+
+    TwoFactorSetupResponse:
+      type: object
+      required:
+        - method
+        - status
+        - secret
+        - otpauthUrl
+      properties:
+        method:
+          type: string
+          enum: [totp]
+        status:
+          type: string
+          enum: [pending_verification, enabled]
+        secret:
+          type: string
+          description: >
+            Base32 gibi bir formatta paylaşılan TOTP sırrı.
+        otpauthUrl:
+          type: string
+          format: uri
+        qrCodeDataUrl:
+          type: string
+          description: İstemci QR render edecekse veri URI olarak dönebilir.
+        recoveryCodes:
+          type: array
+          description: >
+            İleride desteklenmesi çok faydalı olur; şimdiden şemaya koymak kötü fikir değil.
+          items:
+            type: string
+        updatedAt:
+          type: string
+          format: date-time
+
+    FavoriteTargetType:
+      type: string
+      enum:
+        - place
+        - activity
+        - trip_plan
+        - route
+
+    CreateFavoriteRequest:
+      type: object
+      required:
+        - targetType
+        - targetId
+      additionalProperties: false
+      properties:
+        targetType:
+          $ref: '#/components/schemas/FavoriteTargetType'
+        targetId:
+          type: string
+          description: >
+            Favoriye eklenecek hedef kaynağın kimliği.
+        note:
+          type: string
+          maxLength: 500
+          description: Kullanıcının favori için kısa notu.
+        snapshot:
+          $ref: '#/components/schemas/FavoriteSnapshotInput'
+
+    FavoriteSnapshotInput:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        subtitle:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 120
+        imageUrl:
+          type: string
+          format: uri
+
+    Favorite:
+      type: object
+      required:
+        - id
+        - userId
+        - targetType
+        - targetId
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        targetType:
+          $ref: '#/components/schemas/FavoriteTargetType'
+        targetId:
+          type: string
+        note:
+          type: string
+          nullable: true
+        snapshot:
+          allOf:
+            - $ref: '#/components/schemas/FavoriteSnapshotInput'
+            - nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    FavoriteResponse:
+      type: object
+      required:
+        - favorite
+      properties:
+        favorite:
+          $ref: '#/components/schemas/Favorite'
+
+    FavoriteListResponse:
+      type: object
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Favorite'
+        pageInfo:
+          $ref: '#/components/schemas/CursorPageInfo'
+
+    CursorPageInfo:
+      type: object
+      required:
+        - hasNextPage
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+        hasNextPage:
+          type: boolean
+
+    TripRecommendationRequest:
+      type: object
+      required:
+        - destination
+        - tripPurpose
+        - duration
+      additionalProperties: false
+      properties:
+        destination:
+          $ref: '#/components/schemas/DestinationInput'
+        tripPurpose:
+          type: string
+          enum:
+            - cultural
+            - nature
+            - entertainment
+            - gastronomy
+            - relaxation
+            - mixed
+        budget:
+          $ref: '#/components/schemas/BudgetInput'
+        duration:
+          $ref: '#/components/schemas/DurationInput'
+        dateRange:
+          $ref: '#/components/schemas/DateRange'
+        travelerProfile:
+          $ref: '#/components/schemas/TravelerProfileInput'
+        preferenceIds:
+          type: array
+          description: >
+            Kullanıcının kayıtlı preference kayıtlarından özellikle kullanılmasını istediği ID listesi.
+          items:
+            type: string
+            format: uuid
+        includeUserPreferences:
+          type: boolean
+          default: true
+        constraints:
+          $ref: '#/components/schemas/TripRecommendationConstraints'
+
+    DestinationInput:
+      type: object
+      required:
+        - city
+      additionalProperties: false
+      properties:
+        city:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+
+    Coordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+
+    BudgetInput:
+      type: object
+      additionalProperties: false
+      properties:
+        level:
+          type: string
+          enum: [low, medium, high, luxury]
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        minAmount:
+          type: number
+          minimum: 0
+        maxAmount:
+          type: number
+          minimum: 0
+
+    DurationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        days:
+          type: integer
+          minimum: 1
+          maximum: 90
+        nights:
+          type: integer
+          minimum: 0
+          maximum: 89
+
+    DateRange:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    TravelerProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        travelersCount:
+          type: integer
+          minimum: 1
+          maximum: 20
+        companions:
+          type: array
+          items:
+            type: string
+            enum: [solo, partner, family, friends, business]
+        pace:
+          type: string
+          enum: [slow, balanced, intense]
+        accessibilityNeeds:
+          type: array
+          items:
+            type: string
+        interests:
+          type: array
+          items:
+            type: string
+
+    TripRecommendationConstraints:
+      type: object
+      additionalProperties: false
+      properties:
+        maxDailyStops:
+          type: integer
+          minimum: 1
+          maximum: 20
+        avoidCategories:
+          type: array
+          items:
+            type: string
+        preferredCategories:
+          type: array
+          items:
+            type: string
+        indoorOnly:
+          type: boolean
+        outdoorOnly:
+          type: boolean
+        transportPreference:
+          type: string
+          enum: [walking, public_transport, taxi, rental_car, mixed]
+
+    TripRecommendationResponse:
+      type: object
+      required:
+        - recommendationId
+        - destination
+        - summary
+        - suggestedPlaces
+        - dailyDraftPlans
+        - routeIdeas
+        - notes
+        - meta
+      properties:
+        recommendationId:
+          type: string
+          format: uuid
+        destination:
+          $ref: '#/components/schemas/DestinationInput'
+        summary:
+          type: string
+          description: AI tarafından üretilen genel gezi özeti.
+        suggestedPlaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedPlace'
+        dailyDraftPlans:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyDraftPlan'
+        routeIdeas:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteIdea'
+        notes:
+          type: array
+          items:
+            type: string
+        meta:
+          $ref: '#/components/schemas/AIGenerationMeta'
+
+    SuggestedPlace:
+      type: object
+      required:
+        - name
+        - category
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        city:
+          type: string
+        estimatedVisitMinutes:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+        approximateCost:
+          type: number
+          minimum: 0
+
+    DailyDraftPlan:
+      type: object
+      required:
+        - dayNumber
+        - title
+        - items
+      properties:
+        dayNumber:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyDraftItem'
+
+    DailyDraftItem:
+      type: object
+      required:
+        - label
+      properties:
+        startTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        endTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        label:
+          type: string
+        category:
+          type: string
+        note:
+          type: string
+
+    RouteIdea:
+      type: object
+      required:
+        - title
+        - stops
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        stops:
+          type: array
+          items:
+            type: string
+        estimatedTotalMinutes:
+          type: integer
+          minimum: 1
+
+    AIGenerationMeta:
+      type: object
+      required:
+        - generatedAt
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        provider:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        usedExternalData:
+          type: boolean
+        usedPreferenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        warnings:
+          type: array
+          items:
+            type: string
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        traceId:
+          type: string
+          nullable: true
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+        issue:
+          type: string
+        value:
+          nullable: true
+
+    # -------------------------- RB
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+        otpCode:
+          type: string
+          pattern: '^[0-9]{6,8}$'
+          description: >
+            İkinci faktör gerekiyorsa gönderilir.
+        rememberMe:
+          type: boolean
+          default: false
+
+    LoginSuccessResponse:
+      type: object
+      required:
+        - status
+        - user
+        - session
+      properties:
+        status:
+          type: string
+          enum: [ authenticated ]
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        session:
+          $ref: '#/components/schemas/SessionInfo'
+
+    LoginRequiresTwoFactorResponse:
+      type: object
+      required:
+        - status
+        - challenge
+      properties:
+        status:
+          type: string
+          enum: [ 2fa_required ]
+        challenge:
+          $ref: '#/components/schemas/TwoFactorChallenge'
+
+    SessionInfo:
+      type: object
+      required:
+        - issuedAt
+        - expiresAt
+      properties:
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        rememberMe:
+          type: boolean
+        sessionType:
+          type: string
+          enum: [ cookie ]
+
+    TwoFactorChallenge:
+      type: object
+      required:
+        - method
+        - message
+      properties:
+        method:
+          type: string
+          enum: [ totp ]
+        message:
+          type: string
+        challengeId:
+          type: string
+          nullable: true
+
+    PasswordResetRequest:
+      oneOf:
+        - $ref: '#/components/schemas/PasswordResetInitiateRequest'
+        - $ref: '#/components/schemas/PasswordResetConfirmRequest'
+      discriminator:
+        propertyName: action
+        mapping:
+          request_reset: '#/components/schemas/PasswordResetInitiateRequest'
+          confirm_reset: '#/components/schemas/PasswordResetConfirmRequest'
+
+    PasswordResetInitiateRequest:
+      type: object
+      required:
+        - action
+        - email
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [ request_reset ]
+        email:
+          type: string
+          format: email
+
+    PasswordResetConfirmRequest:
+      type: object
+      required:
+        - action
+        - email
+        - resetToken
+        - newPassword
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [ confirm_reset ]
+        email:
+          type: string
+          format: email
+        resetToken:
+          type: string
+          minLength: 8
+          description: >
+            E-posta bağlantısı, tek kullanımlık token veya doğrulama kodu.
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+        otpCode:
+          type: string
+          pattern: '^[0-9]{4,8}$'
+          nullable: true
+          description: >
+            Akış çok adımlıysa ek doğrulama kodu.
+
+    PasswordResetInitiateResponse:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum: [ reset_requested ]
+        message:
+          type: string
+        expiresInMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+
+    PasswordResetConfirmResponse:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum: [ password_updated ]
+        message:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+
+    UsernameCheckResponse:
+      type: object
+      required:
+        - username
+        - normalizedUsername
+        - available
+      properties:
+        username:
+          type: string
+        normalizedUsername:
+          type: string
+        available:
+          type: boolean
+        reason:
+          type: string
+          enum:
+            - available
+            - already_taken
+            - reserved
+            - invalid_format
+            - too_short
+            - too_long
+          nullable: true
+        suggestions:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+
+    CreateCalendarPlanRequest:
+      type: object
+      required:
+        - routeId
+        - date
+        - startTime
+        - endTime
+      additionalProperties: false
+      properties:
+        routeId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        endTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        title:
+          type: string
+          maxLength: 200
+        place:
+          $ref: '#/components/schemas/CalendarPlaceInput'
+        activity:
+          $ref: '#/components/schemas/CalendarActivityInput'
+        notes:
+          type: string
+          maxLength: 2000
+        sourceType:
+          type: string
+          enum: [ manual, ai_suggested, imported ]
+          default: manual
+        relatedRecommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    UpdateCalendarPlanRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        routeId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        endTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        title:
+          type: string
+          maxLength: 200
+        place:
+          $ref: '#/components/schemas/CalendarPlaceInput'
+        activity:
+          $ref: '#/components/schemas/CalendarActivityInput'
+        notes:
+          type: string
+          maxLength: 2000
+        sourceType:
+          type: string
+          enum: [ manual, ai_suggested, imported ]
+        relatedRecommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CalendarPlaceInput:
+      type: object
+      additionalProperties: false
+      properties:
+        placeId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+        city:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+
+    CalendarActivityInput:
+      type: object
+      additionalProperties: false
+      properties:
+        activityId:
+          type: string
+          format: uuid
+          nullable: true
+        category:
+          type: string
+          enum:
+            - cultural
+            - entertainment
+            - nature
+            - gastronomy
+            - relaxation
+            - shopping
+            - nightlife
+            - mixed
+          nullable: true
+        label:
+          type: string
+          maxLength: 200
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+
+    CalendarPlan:
+      type: object
+      required:
+        - id
+        - userId
+        - routeId
+        - date
+        - startTime
+        - endTime
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        routeId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+        endTime:
+          type: string
+        title:
+          type: string
+          nullable: true
+        place:
+          allOf:
+            - $ref: '#/components/schemas/CalendarPlaceInput'
+            - nullable: true
+        activity:
+          allOf:
+            - $ref: '#/components/schemas/CalendarActivityInput'
+            - nullable: true
+        notes:
+          type: string
+          nullable: true
+        sourceType:
+          type: string
+          enum: [ manual, ai_suggested, imported ]
+        relatedRecommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CalendarPlanResponse:
+      type: object
+      required:
+        - plan
+      properties:
+        plan:
+          $ref: '#/components/schemas/CalendarPlan'
+
+    CalendarPlanListResponse:
+      type: object
+      required:
+        - view
+        - range
+        - items
+        - pageInfo
+      properties:
+        view:
+          type: string
+          enum: [ day, week, month ]
+        range:
+          $ref: '#/components/schemas/CalendarRange'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarPlan'
+        pageInfo:
+          $ref: '#/components/schemas/CursorPageInfo'
+
+    CalendarRange:
+      type: object
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    ActivityRecommendationRequest:
+      type: object
+      required:
+        - location
+        - availableTime
+      additionalProperties: false
+      properties:
+        location:
+          $ref: '#/components/schemas/ActivityLocationInput'
+        availableTime:
+          $ref: '#/components/schemas/AvailableTimeInput'
+        interests:
+          type: array
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            type: string
+            enum:
+              - cultural
+              - entertainment
+              - nature
+              - gastronomy
+              - relaxation
+              - shopping
+              - nightlife
+        budget:
+          $ref: '#/components/schemas/BudgetInput'
+        preferenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        includeUserPreferences:
+          type: boolean
+          default: true
+        routeId:
+          type: string
+          format: uuid
+          nullable: true
+        calendarPlanId:
+          type: string
+          format: uuid
+          nullable: true
+        alignWithCurrentPlan:
+          type: boolean
+          default: true
+        dateRange:
+          $ref: '#/components/schemas/DateRange'
+        excludeActivityIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    ActivityLocationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        city:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        radiusKm:
+          type: number
+          minimum: 0.1
+          maximum: 200
+
+    AvailableTimeInput:
+      type: object
+      additionalProperties: false
+      properties:
+        totalMinutes:
+          type: integer
+          minimum: 30
+          maximum: 10080
+        preferredStartTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        preferredEndTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+
+    ActivityRecommendationResponse:
+      type: object
+      required:
+        - recommendationId
+        - summary
+        - activities
+        - meta
+      properties:
+        recommendationId:
+          type: string
+          format: uuid
+        summary:
+          type: string
+        activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendedActivity'
+        compatibility:
+          $ref: '#/components/schemas/PlanCompatibility'
+        meta:
+          $ref: '#/components/schemas/AIGenerationMeta'
+
+    RecommendedActivity:
+      type: object
+      required:
+        - title
+        - category
+        - reason
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        reason:
+          type: string
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 1
+        approximateCost:
+          type: number
+          minimum: 0
+        location:
+          $ref: '#/components/schemas/ActivityLocationInput'
+        bestTimeWindow:
+          $ref: '#/components/schemas/RecommendedTimeWindow'
+        suitabilityScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        matchedPreferenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        routeFit:
+          type: string
+          enum: [ excellent, good, partial, poor ]
+          nullable: true
+        calendarFit:
+          type: string
+          enum: [ excellent, good, partial, poor ]
+          nullable: true
+
+    RecommendedTimeWindow:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+
+    PlanCompatibility:
+      type: object
+      properties:
+        alignedWithRoute:
+          type: boolean
+        alignedWithCalendar:
+          type: boolean
+        notes:
+          type: array
+          items:
+            type: string
+
+    # ---------------------- ZA
+
+    RouteStatus:
+      type: string
+      enum:
+        - draft
+        - planned
+        - in_progress
+        - completed
+        - archived
+
+    RouteTravelStyle:
+      type: string
+      enum:
+        - cultural
+        - nature
+        - entertainment
+        - gastronomy
+        - relaxation
+        - mixed
+
+    RoutePoint:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+
+    RoutePlaceSummary:
+      type: object
+      properties:
+        placeId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        order:
+          type: integer
+          minimum: 1
+        category:
+          type: string
+          nullable: true
+        estimatedVisitMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+
+    RouteTimePlanItem:
+      type: object
+      properties:
+        dayNumber:
+          type: integer
+          minimum: 1
+        label:
+          type: string
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+
+    RouteActivitySummary:
+      type: object
+      properties:
+        category:
+          type: string
+        label:
+          type: string
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+
+    CreateRouteRequest:
+      type: object
+      required:
+        - title
+        - destination
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        destination:
+          $ref: '#/components/schemas/RoutePoint'
+        origin:
+          $ref: '#/components/schemas/RoutePoint'
+        dateRange:
+          $ref: '#/components/schemas/DateRange'
+        travelStyle:
+          $ref: '#/components/schemas/RouteTravelStyle'
+        estimatedTotalMinutes:
+          type: integer
+          minimum: 1
+        estimatedBudget:
+          $ref: '#/components/schemas/BudgetInput'
+        notes:
+          type: string
+          maxLength: 3000
+        places:
+          type: array
+          description: >
+            Başlangıç oluşturma sırasında isteğe bağlı özet durak verileri.
+            Ayrıntılı gezi noktası yönetimi sonraki blokta route places endpointleriyle yapılacaktır.
+          items:
+            $ref: '#/components/schemas/RoutePlaceSummary'
+        activitySequence:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteActivitySummary'
+        timePlan:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTimePlanItem'
+        relatedRecommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    UpdateRouteRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        destination:
+          $ref: '#/components/schemas/RoutePoint'
+        origin:
+          $ref: '#/components/schemas/RoutePoint'
+        dateRange:
+          $ref: '#/components/schemas/DateRange'
+        travelStyle:
+          $ref: '#/components/schemas/RouteTravelStyle'
+        estimatedTotalMinutes:
+          type: integer
+          minimum: 1
+        estimatedBudget:
+          $ref: '#/components/schemas/BudgetInput'
+        notes:
+          type: string
+          maxLength: 3000
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutePlaceSummary'
+        activitySequence:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteActivitySummary'
+        timePlan:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTimePlanItem'
+        relatedRecommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    Route:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - destination
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        destination:
+          $ref: '#/components/schemas/RoutePoint'
+        origin:
+          allOf:
+            - $ref: '#/components/schemas/RoutePoint'
+            - nullable: true
+        dateRange:
+          allOf:
+            - $ref: '#/components/schemas/DateRange'
+            - nullable: true
+        travelStyle:
+          allOf:
+            - $ref: '#/components/schemas/RouteTravelStyle'
+            - nullable: true
+        estimatedTotalMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+        estimatedBudget:
+          allOf:
+            - $ref: '#/components/schemas/BudgetInput'
+            - nullable: true
+        notes:
+          type: string
+          nullable: true
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutePlaceSummary'
+        activitySequence:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteActivitySummary'
+        timePlan:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTimePlanItem'
+        relatedRecommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        linkedCalendarPlanIds:
+          type: array
+          description: Bu rotaya bağlı takvim planlarının kimlikleri.
+          items:
+            type: string
+            format: uuid
+        placeCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RouteListItem:
+      type: object
+      required:
+        - id
+        - title
+        - destination
+        - status
+        - placeCount
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        destination:
+          $ref: '#/components/schemas/RoutePoint'
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        travelStyle:
+          allOf:
+            - $ref: '#/components/schemas/RouteTravelStyle'
+            - nullable: true
+        dateRange:
+          allOf:
+            - $ref: '#/components/schemas/DateRange'
+            - nullable: true
+        estimatedTotalMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+        placeCount:
+          type: integer
+          minimum: 0
+        linkedCalendarPlanCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RouteResponse:
+      type: object
+      required:
+        - route
+      properties:
+        route:
+          $ref: '#/components/schemas/Route'
+
+    RouteListResponse:
+      type: object
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteListItem'
+        pageInfo:
+          $ref: '#/components/schemas/CursorPageInfo'
+
+    NotificationType:
+      type: string
+      enum:
+        - reminder
+        - route_update
+        - calendar_update
+        - ai_suggestion
+        - weather_alert
+        - system
+
+    NotificationSource:
+      type: string
+      enum:
+        - user
+        - system
+        - route
+        - calendar
+        - ai
+        - weather_provider
+
+    CreateNotificationRequest:
+      type: object
+      required:
+        - title
+        - type
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        message:
+          type: string
+          maxLength: 2000
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        relatedRouteId:
+          type: string
+          format: uuid
+          nullable: true
+        relatedCalendarPlanId:
+          type: string
+          format: uuid
+          nullable: true
+        relatedRecommendationId:
+          type: string
+          format: uuid
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - type
+        - source
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        message:
+          type: string
+          nullable: true
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        source:
+          $ref: '#/components/schemas/NotificationSource'
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        relatedRouteId:
+          type: string
+          format: uuid
+          nullable: true
+        relatedCalendarPlanId:
+          type: string
+          format: uuid
+          nullable: true
+        relatedRecommendationId:
+          type: string
+          format: uuid
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationResponse:
+      type: object
+      required:
+        - notification
+      properties:
+        notification:
+          $ref: '#/components/schemas/Notification'
+
+    NotificationListResponse:
+      type: object
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pageInfo:
+          $ref: '#/components/schemas/CursorPageInfo'
+
+    WeatherRecommendationRequest:
+      type: object
+      required:
+        - city
+        - dateRange
+      additionalProperties: false
+      properties:
+        city:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        dateRange:
+          $ref: '#/components/schemas/DateRange'
+        routeId:
+          type: string
+          format: uuid
+          nullable: true
+        preferenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        includeUserPreferences:
+          type: boolean
+          default: true
+        travelStyle:
+          $ref: '#/components/schemas/RouteTravelStyle'
+        budget:
+          $ref: '#/components/schemas/BudgetInput'
+        prioritizeIndoorAlternatives:
+          type: boolean
+          default: true
+        includePackingHints:
+          type: boolean
+          default: false
+
+    WeatherSnapshot:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        minTemperatureC:
+          type: number
+          nullable: true
+        maxTemperatureC:
+          type: number
+          nullable: true
+        precipitationProbability:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        windSpeedKph:
+          type: number
+          minimum: 0
+          nullable: true
+        condition:
+          type: string
+          nullable: true
+        recommendationContext:
+          type: string
+          nullable: true
+
+    WeatherBasedSuggestion:
+      type: object
+      required:
+        - title
+        - category
+        - suitability
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        suitability:
+          type: string
+          enum:
+            - outdoor
+            - indoor
+            - mixed
+        reason:
+          type: string
+        bestDay:
+          type: string
+          format: date
+          nullable: true
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+        approximateCost:
+          type: number
+          minimum: 0
+          nullable: true
+        weatherRiskLevel:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          nullable: true
+
+    WeatherRecommendationResponse:
+      type: object
+      required:
+        - recommendationId
+        - location
+        - weather
+        - suggestions
+        - summary
+        - meta
+      properties:
+        recommendationId:
+          type: string
+          format: uuid
+        location:
+          type: object
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+              nullable: true
+        weather:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeatherSnapshot'
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeatherBasedSuggestion'
+        summary:
+          type: string
+        packingHints:
+          type: array
+          items:
+            type: string
+        planAdjustmentNotes:
+          type: array
+          items:
+            type: string
+        meta:
+          $ref: '#/components/schemas/AIGenerationMeta'
+
+    # -------------------------- AL
+
+    PreferenceScope:
+      type: string
+      enum:
+        - global
+        - trip_specific
+
+    BudgetLevel:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+        - luxury
+
+    PacePreference:
+      type: string
+      enum:
+        - slow
+        - balanced
+        - intense
+
+    TransportMode:
+      type: string
+      enum:
+        - walking
+        - public_transport
+        - taxi
+        - rental_car
+        - private_car
+        - mixed
+
+    MealPreference:
+      type: string
+      enum:
+        - local_cuisine
+        - vegetarian
+        - vegan
+        - halal
+        - seafood
+        - street_food
+        - fine_dining
+        - mixed
+
+    AccommodationPreference:
+      type: string
+      enum:
+        - hotel
+        - hostel
+        - apartment
+        - boutique
+        - resort
+        - mixed
+
+    CreatePreferenceRequest:
+      type: object
+      required:
+        - title
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+        scope:
+          $ref: '#/components/schemas/PreferenceScope'
+        isDefault:
+          type: boolean
+          default: false
+        budgetLevel:
+          $ref: '#/components/schemas/BudgetLevel'
+        travelStyles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTravelStyle'
+        interests:
+          type: array
+          items:
+            type: string
+        preferredTransportModes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransportMode'
+        mealPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealPreference'
+        accommodationPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccommodationPreference'
+        activityPreferences:
+          type: array
+          items:
+            type: string
+        preferredPace:
+          $ref: '#/components/schemas/PacePreference'
+        accessibilityNeeds:
+          type: array
+          items:
+            type: string
+        avoidCategories:
+          type: array
+          items:
+            type: string
+        preferredTimeWindows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreferredTimeWindow'
+        notes:
+          type: string
+          maxLength: 2000
+
+    UpdatePreferenceRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+        scope:
+          $ref: '#/components/schemas/PreferenceScope'
+        isDefault:
+          type: boolean
+        budgetLevel:
+          $ref: '#/components/schemas/BudgetLevel'
+        travelStyles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTravelStyle'
+        interests:
+          type: array
+          items:
+            type: string
+        preferredTransportModes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransportMode'
+        mealPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealPreference'
+        accommodationPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccommodationPreference'
+        activityPreferences:
+          type: array
+          items:
+            type: string
+        preferredPace:
+          $ref: '#/components/schemas/PacePreference'
+        accessibilityNeeds:
+          type: array
+          items:
+            type: string
+        avoidCategories:
+          type: array
+          items:
+            type: string
+        preferredTimeWindows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreferredTimeWindow'
+        notes:
+          type: string
+          maxLength: 2000
+
+    PreferredTimeWindow:
+      type: object
+      additionalProperties: false
+      properties:
+        dayPart:
+          type: string
+          enum:
+            - morning
+            - noon
+            - afternoon
+            - evening
+            - night
+        startTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        endTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+
+    Preference:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - scope
+        - isDefault
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        scope:
+          $ref: '#/components/schemas/PreferenceScope'
+        isDefault:
+          type: boolean
+        budgetLevel:
+          allOf:
+            - $ref: '#/components/schemas/BudgetLevel'
+            - nullable: true
+        travelStyles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTravelStyle'
+        interests:
+          type: array
+          items:
+            type: string
+        preferredTransportModes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransportMode'
+        mealPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealPreference'
+        accommodationPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccommodationPreference'
+        activityPreferences:
+          type: array
+          items:
+            type: string
+        preferredPace:
+          allOf:
+            - $ref: '#/components/schemas/PacePreference'
+            - nullable: true
+        accessibilityNeeds:
+          type: array
+          items:
+            type: string
+        avoidCategories:
+          type: array
+          items:
+            type: string
+        preferredTimeWindows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreferredTimeWindow'
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PreferenceResponse:
+      type: object
+      required:
+        - preference
+      properties:
+        preference:
+          $ref: '#/components/schemas/Preference'
+
+    PreferenceListResponse:
+      type: object
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Preference'
+        pageInfo:
+          $ref: '#/components/schemas/CursorPageInfo'
+
+    RoutePlaceCategory:
+      type: string
+      enum:
+        - landmark
+        - museum
+        - restaurant
+        - cafe
+        - park
+        - shopping
+        - nightlife
+        - beach
+        - activity
+        - hotel
+        - transport
+        - custom
+
+    CreateRoutePlaceRequest:
+      type: object
+      required:
+        - name
+        - order
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        category:
+          $ref: '#/components/schemas/RoutePlaceCategory'
+        description:
+          type: string
+          maxLength: 1000
+        address:
+          type: string
+          maxLength: 500
+        city:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        order:
+          type: integer
+          minimum: 1
+        estimatedVisitMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+        plannedArrivalTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        plannedDepartureTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        note:
+          type: string
+          maxLength: 2000
+        sourceType:
+          type: string
+          enum:
+            - manual
+            - ai_suggested
+            - imported
+          default: manual
+        relatedCalendarPlanId:
+          type: string
+          format: uuid
+          nullable: true
+
+    UpdateRoutePlaceRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        category:
+          $ref: '#/components/schemas/RoutePlaceCategory'
+        description:
+          type: string
+          maxLength: 1000
+        address:
+          type: string
+          maxLength: 500
+        city:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          maxLength: 120
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        order:
+          type: integer
+          minimum: 1
+        estimatedVisitMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+        plannedArrivalTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        plannedDepartureTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+        note:
+          type: string
+          maxLength: 2000
+        sourceType:
+          type: string
+          enum:
+            - manual
+            - ai_suggested
+            - imported
+        relatedCalendarPlanId:
+          type: string
+          format: uuid
+          nullable: true
+
+    RoutePlace:
+      type: object
+      required:
+        - id
+        - routeId
+        - userId
+        - name
+        - order
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        routeId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          allOf:
+            - $ref: '#/components/schemas/RoutePlaceCategory'
+            - nullable: true
+        description:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        coordinates:
+          allOf:
+            - $ref: '#/components/schemas/Coordinates'
+            - nullable: true
+        order:
+          type: integer
+          minimum: 1
+        estimatedVisitMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+        plannedArrivalTime:
+          type: string
+          nullable: true
+        plannedDepartureTime:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        sourceType:
+          type: string
+          enum:
+            - manual
+            - ai_suggested
+            - imported
+        relatedCalendarPlanId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RoutePlaceResponse:
+      type: object
+      required:
+        - place
+      properties:
+        place:
+          $ref: '#/components/schemas/RoutePlace'
+
+    TripSummaryRequest:
+      type: object
+      required:
+        - routeId
+        - tripStateContext
+      additionalProperties: false
+      properties:
+        routeId:
+          type: string
+          format: uuid
+        tripStateContext:
+          type: string
+          enum:
+            - planned
+            - completed
+        placeIds:
+          type: array
+          description: >
+            Özetin belirli gezi noktalarıyla sınırlandırılması isteniyorsa kullanılabilir.
+          items:
+            type: string
+            format: uuid
+        calendarPlanIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        includeRouteNotes:
+          type: boolean
+          default: true
+        includePlaceNotes:
+          type: boolean
+          default: true
+        includeActivityContext:
+          type: boolean
+          default: true
+        includeDurations:
+          type: boolean
+          default: true
+        includeHighlights:
+          type: boolean
+          default: true
+        summaryStyle:
+          type: string
+          enum:
+            - concise
+            - detailed
+            - shareable
+            - storytelling
+          default: shareable
+        language:
+          type: string
+          default: tr-TR
+        audience:
+          type: string
+          enum:
+            - self
+            - friends
+            - public
+          default: self
+        extraPrompt:
+          type: string
+          maxLength: 2000
+          description: Özet tonunu veya odağını yönlendirmek için ek istem.
+
+    TripSummaryResponse:
+      type: object
+      required:
+        - summaryId
+        - routeId
+        - title
+        - summaryText
+        - timeline
+        - highlights
+        - stats
+        - meta
+      properties:
+        summaryId:
+          type: string
+          format: uuid
+        routeId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        summaryText:
+          type: string
+        shareableExcerpt:
+          type: string
+          nullable: true
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TripSummaryTimelineItem'
+        highlights:
+          type: array
+          items:
+            $ref: '#/components/schemas/TripSummaryHighlight'
+        stats:
+          $ref: '#/components/schemas/TripSummaryStats'
+        meta:
+          $ref: '#/components/schemas/AIGenerationMeta'
+
+    TripSummaryTimelineItem:
+      type: object
+      required:
+        - order
+        - label
+      properties:
+        order:
+          type: integer
+          minimum: 1
+        dayNumber:
+          type: integer
+          minimum: 1
+          nullable: true
+        time:
+          type: string
+          nullable: true
+        label:
+          type: string
+        category:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        durationMinutes:
+          type: integer
+          minimum: 1
+          nullable: true
+
+    TripSummaryHighlight:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        relatedPlaceId:
+          type: string
+          format: uuid
+          nullable: true
+        sentiment:
+          type: string
+          enum:
+            - positive
+            - neutral
+            - mixed
+          nullable: true
+
+    TripSummaryStats:
+      type: object
+      properties:
+        totalPlaces:
+          type: integer
+          minimum: 0
+        totalActivities:
+          type: integer
+          minimum: 0
+        totalPlannedMinutes:
+          type: integer
+          minimum: 0
+        noteCount:
+          type: integer
+          minimum: 0
+        coveredDays:
+          type: integer
+          minimum: 0
+
+    # ---------------------- VA
+
+  responses:
+    ValidationError:
+      description: İstek doğrulama hatası.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ConflictError:
+      description: Kaynak çakışması veya benzersizlik ihlali.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    BusinessRuleViolationError:
+      description: İş kuralı ihlali.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    UnauthorizedError:
+      description: Kimlik doğrulama gerekli veya geçersiz.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ForbiddenError:
+      description: Kaynağa erişim yetkisi yok.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    FavoriteNotFoundError:
+      description: İstenen favori kaydı bulunamadı.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ReferencedResourceNotFoundError:
+      description: Favoriye eklenmek istenen hedef kaynak bulunamadı.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    FreshAuthRequiredError:
+      description: İşlemi tamamlamak için tekrar kimlik doğrulama gerekli.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    TwoFactorRequiredError:
+      description: İşlemi tamamlamak için ikinci faktör doğrulaması gerekli.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ExternalDependencyError:
+      description: Dış sağlayıcı veya bağımlı servis hatası.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    AIProviderUnavailableError:
+      description: AI sağlayıcısı geçici olarak kullanılamıyor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RateLimitedError:
+      description: Çok fazla istek gönderildi.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    # -------------------------- RB
+
+    AuthenticationFailedError:
+      description: Email, parola veya OTP doğrulaması başarısız.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    AccountLockedError:
+      description: Hesap güvenlik politikası nedeniyle geçici olarak kilitlendi.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ResetTokenExpiredError:
+      description: Şifre sıfırlama tokenı/kodu süresi dolmuş veya geçersiz.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    CalendarPlanNotFoundError:
+      description: İstenen takvim planı bulunamadı.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    CalendarConflictError:
+      description: Takvim planı zaman çakışması veya benzeri planlama çakışması içeriyor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RouteNotFoundError:
+      description: İlgili route bulunamadı veya kullanıcıya ait değil.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    # ------------------------- ZA
+
+    NotificationNotFoundError:
+      description: İstenen bildirim kaydı bulunamadı.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    # -------------------------- AL
+
+    PreferenceNotFoundError:
+      description: İstenen preference kaydı bulunamadı.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RoutePlaceNotFoundError:
+      description: İstenen rota içi gezi noktası bulunamadı.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RoutePlaceOrderConflictError:
+      description: Gezi noktası sırası mevcut rota planıyla çakışıyor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    # -------------------- VA
+
+  headers:
+    RetryAfter:
+      description: Yeni deneme öncesi bekleme süresi (saniye).
+      schema:
+        type: integer
+        minimum: 1
+
+    # -------------------------- RB
