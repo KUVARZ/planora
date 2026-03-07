@@ -824,8 +824,6 @@ paths:
       summary: Rota kaydını sil
       description: >
         Kullanıcının kendi rota kayıtlarından birini silmesini sağlar.
-        Bu işlem rota ile ilişkili üst seviye planlamayı kaldırır; alt kaynak temizliği
-        uygulama tarafında policy'e göre yönetilebilir.
       operationId: deleteRoute
       security:
         - SessionCookie: [ ]
@@ -1652,13 +1650,6 @@ components:
         birthDate:
           type: string
           format: date
-        username:
-          type: string
-          minLength: 3
-          maxLength: 32
-          pattern: '^[a-zA-Z0-9._-]+$'
-          description: >
-            Desteklenecekse güncellenebilir; desteklenmeyecekse server bunu reddedebilir.
       description: >
         Profil alanlarının kısmi güncellemesi için istek gövdesi.
 
@@ -1730,12 +1721,6 @@ components:
         qrCodeDataUrl:
           type: string
           description: İstemci QR render edecekse veri URI olarak dönebilir.
-        recoveryCodes:
-          type: array
-          description: >
-            İleride desteklenmesi çok faydalı olur; şimdiden şemaya koymak kötü fikir değil.
-          items:
-            type: string
         updatedAt:
           type: string
           format: date-time
