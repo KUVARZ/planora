@@ -1661,9 +1661,9 @@ components:
       properties:
         method:
           type: string
-          enum: [totp]
+          enum: [totp, email]
           description: >
-            Şimdilik en mantıklı yöntem TOTP. SMS/e-posta 2FA ileride eklenebilir.
+            2FA Metodu türü. Örneğin TOTP veya E-Posta
         issuer:
           type: string
           default: PLANORA
