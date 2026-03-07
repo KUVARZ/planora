@@ -876,8 +876,7 @@ paths:
       summary: Kullanıcıya ait yeni bildirim/reminder oluştur
       description: >
         Kullanıcının kendi hesabı için manuel bir bildirim veya reminder kaydı oluşturmasını sağlar.
-        Sistem veya AI tarafından üretilen bildirimler ayrı akışlarla oluşturulabilir;
-        ancak bu endpoint kullanıcı tanımlı kayıtlar içindir.
+        Sistem veya AI tarafından üretilen bildirimler ayrı akışlarla oluşturulabilir.
       operationId: createNotification
       security:
         - SessionCookie: [ ]
@@ -1544,7 +1543,7 @@ components:
           minLength: 8
           maxLength: 128
           description: >
-            Güçlü parola. Sunucu tarafında karmaşıklık kuralları ayrıca uygulanabilir.
+            Güçlü parola.
         firstName:
           type: string
           minLength: 1
