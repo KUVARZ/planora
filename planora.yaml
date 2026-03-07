@@ -1,8 +1,7 @@
-openapi: 3.2.0
+openapi: 3.0.3
 
 info:
   title: PLANORA API
-  summary: AI destekli seyahat, rota ve takvim planlama API'si.
   description: |
     PLANORA, kullanıcıların ilgi alanları, bütçesi, zaman aralığı ve gezi tarzına göre
     kişiselleştirilmiş seyahat planları, rotalar ve öneriler üretmeyi amaçlayan
@@ -1281,7 +1280,25 @@ components:
       description: >
         PLANORA web oturumu için kullanılan birincil session cookie.
 
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: >
+        Cookie tabanlı ve state-changing (POST/PUT/PATCH/DELETE) isteklerde
+        kullanılan CSRF token başlığı. Public veya salt-read endpointlerde
+        zorunlu değildir.
+
   parameters:
+    XCsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: State-changing cookie-auth isteklerinde gönderilen CSRF token.
+      schema:
+        type: string
+        minLength: 16
+
     FavoriteId:
       name: favoriteId
       in: path
