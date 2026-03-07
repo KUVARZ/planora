@@ -53,10 +53,6 @@ tags:
   - name: AI
     description: AI destekli gezi, aktivite, hava durumu önerileri ve gezi özeti üretimi.
 
-externalDocs:
-  description: Proje ana dokümantasyonu
-  url: ./README.md
-
 security:
   - SessionCookie: []
 
