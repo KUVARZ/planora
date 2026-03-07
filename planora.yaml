@@ -1687,7 +1687,7 @@ components:
             Mevcut 2FA yöntemini doğrulamak için istenebilir.
         newMethod:
           type: string
-          enum: [totp]
+          enum: [totp, email]
         issuer:
           type: string
         accountLabel:
@@ -1707,7 +1707,7 @@ components:
       properties:
         method:
           type: string
-          enum: [totp]
+          enum: [totp, email]
         status:
           type: string
           enum: [pending_verification, enabled]
@@ -2237,7 +2237,7 @@ components:
       properties:
         method:
           type: string
-          enum: [ totp ]
+          enum: [totp, email]
         message:
           type: string
         challengeId:
